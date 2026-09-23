@@ -123,8 +123,11 @@ app.get('/stream', async (req, res) => {
   const allowed = [144, 240, 360, 480, 720, 1080];
   let h = parseInt(req.query.h, 10);
   if (!allowed.includes(h)) h = req.query.q === 'high' ? 480 : 360;
-  // best at-or-below selected height, https H264+AAC first (fast direct fetch).
-  const format = `bestvideo[height<=${h}][vcodec^=avc][protocol=https]+bestaudio[acodec^=mp4a][protocol=https]/best[height<=${h}][vcodec^=avc][protocol=https]/best[height<=${h}][protocol=https]/best[protocol=https]/best`;
+  // best at-or-below selected height, strictly H264+AAC over https first;
+  // fall back in HEIGHT, not codec (VP9/AV1 in MP4 = browser error 4).
+  const V = `bv*[height<=${h}][vcodec^=avc][protocol=https]`;
+  const A = `ba[acodec^=mp4a][protocol=https]`;
+  const format = `${V}+${A}/bv*[vcodec^=avc][protocol=https]+${A}/b[vcodec^=avc]/b`;
   console.log(`[stream] live ${url} h<=${h} mode=${req.query.mode === 'std' ? 'std' : 'live'}`);
   try {
     const urls = await getDirectUrls(url, format);
@@ -139,11 +142,16 @@ app.get('/stream', async (req, res) => {
     args.push('-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1');
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Cache-Control', 'no-store');
-    const ff = spawn('ffmpeg', ['-y', '-v', 'error', ...args], { windowsHide: true });
+    const ff = spawn('ffmpeg', ['-y', '-v', 'info', ...args], { windowsHide: true });
     ff.stdout.pipe(res);
-    // ffmpeg chatters routine progress to stderr; only real problems deserve error level
+    // log input summary once (proves which codecs actually arrived), errors always
+    let loggedInput = false;
     ff.stderr.on('data', d => {
       const line = String(d);
+      if (!loggedInput && /Input #0|Video:|Audio:/.test(line)) {
+        loggedInput = true;
+        console.log('[ffmpeg] ' + line.slice(0, 300).replace(/\n/g, ' | '));
+      }
       if (/error|fail|denied|forbidden|invalid|unable|could not|timed out|403|404/i.test(line)) {
         console.error('[ffmpeg] ' + line.slice(0, 300));
       }
