@@ -18,6 +18,12 @@ node server.js
 4. Open the Railway-provided `https://xxx.up.railway.app` URL on the restricted WiFi.
 
 ## Notes / limits
-- Bandwidth: video is proxied through Railway. Low-res default (`worst`). Add `?q=high` to `/stream` for better quality at higher egress cost.
+- Bandwidth: video is proxied through Railway. Default 360p; pick 144p–1080p in the sidebar (higher = more egress).
+- Railway bot-check: YouTube often shows "Sign in to confirm you're not a bot" to datacenter IPs.
+  The server defaults to the `android` player client (`YT_CLIENTS` env, e.g. `android,web`)
+  which usually avoids it. If it still fails, add login cookies:
+  1. In your desktop browser install "Get cookies.txt LOCALLY", export `youtube.com` cookies.
+  2. Railway → Variables → add `YT_COOKIES` with the full file content → redeploy.
+  Refresh cookies when streams start failing again.
 - YouTube rate-limits datacenter IPs and changes parsing often. If `/api/info` returns 502, redeploy to get latest yt-dlp (`pip install -U yt-dlp` in Dockerfile build does this).
 - Only use for content you have the right to view, and only on networks where you have permission. Circumventing school/work filters may violate acceptable-use policy. Respect YouTube ToS and copyright.

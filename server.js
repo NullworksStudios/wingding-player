@@ -31,11 +31,30 @@ function runYtDlp(args) {
   return spawn(parts[0], [...parts.slice(1), ...args], { windowsHide: true });
 }
 
+// YouTube bot-checks datacenter IPs ("Sign in to confirm you're not a bot").
+// Mitigations: alternate player clients first (override with YT_CLIENTS),
+// plus optional login cookies via YT_COOKIES env (Netscape cookies.txt content).
+const YT_CLIENTS = process.env.YT_CLIENTS || 'android,web';
+let cookieFile = null;
+if (process.env.YT_COOKIES) {
+  try {
+    cookieFile = path.join(os.tmpdir(), 'yt-cookies.txt');
+    fs.writeFileSync(cookieFile, process.env.YT_COOKIES);
+    console.log('Using YouTube cookies from YT_COOKIES env');
+  } catch (e) { console.error('Failed to write cookies file', e); }
+}
+function baseArgs() {
+  const a = ['--no-playlist', '--no-warnings'];
+  if (YT_CLIENTS) a.push('--extractor-args', `youtube:player_client=${YT_CLIENTS}`);
+  if (cookieFile) a.push('--cookies', cookieFile);
+  return a;
+}
+
 // server/js/server.js:12
 app.get('/api/info', (req, res) => {
   const url = normalizeToUrl(req.query.v || req.query.url || '');
   if (!url) return res.status(400).json({ error: 'Provide ?v=VIDEO_ID or ?url=YOUTUBE_URL' });
-  const child = runYtDlp(['--dump-single-json', '--no-playlist', '--no-warnings', url]);
+  const child = runYtDlp(['--dump-single-json', ...baseArgs(), url]);
   let out = '', err = '';
   child.stdout.on('data', d => { out += d; });
   child.stderr.on('data', d => { err += d; });
@@ -58,7 +77,7 @@ app.get('/api/info', (req, res) => {
 // no merge wait. (Old temp-file code measured 4x slower: HLS fetch + merge + faststart.)
 function getDirectUrls(url, format) {
   return new Promise((resolve, reject) => {
-    const child = runYtDlp(['-f', format, '--no-playlist', '--no-warnings', '-g', url]);
+    const child = runYtDlp(['-f', format, ...baseArgs(), '-g', url]);
     let out = '', err = '';
     child.stdout.on('data', d => { out += d; });
     child.stderr.on('data', d => { err += d; });
@@ -113,7 +132,7 @@ app.get('/api/search', (req, res) => {
   if (!Number.isFinite(o)) o = 0;
   o = Math.min(40, Math.max(0, o));
   const total = o + n;
-  const child = runYtDlp(['--dump-single-json', '--flat-playlist', '--no-playlist', '--no-warnings',
+  const child = runYtDlp(['--dump-single-json', '--flat-playlist', ...baseArgs(),
     '--playlist-start', String(o + 1), '--playlist-end', String(total), `ytsearch${total}:${q}`]);
   let out = '', err = '';
   child.stdout.on('data', d => { out += d; });
