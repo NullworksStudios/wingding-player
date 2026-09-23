@@ -138,6 +138,10 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 <option value="720">720p</option>
 <option value="1080">1080p</option>
 </select>
+<select id="engine" title="Engine: Live is fast copy, Compatible re-encodes">
+<option value="live" selected>Live</option>
+<option value="std">Compatible</option>
+</select>
 <button id="go">Go</button>
 </div></div>
 <div id="nowbox"><img id="nowimg" alt=""><div id="nowtitle"></div></div>
@@ -160,6 +164,7 @@ const q = document.getElementById('q'), go = document.getElementById('go'),
       title = document.getElementById('title'), v = document.getElementById('v'),
       err = document.getElementById('err'), results = document.getElementById('results'),
       quality = document.getElementById('quality'), stage = document.getElementById('stage'),
+      engine = document.getElementById('engine'),
       spinner = document.getElementById('spinner'), spintext = document.getElementById('spintext'),
       barfill = document.getElementById('barfill'), barbuf = document.getElementById('barbuf'),
       bar = document.getElementById('bar'),
@@ -170,6 +175,7 @@ let shownIds = new Set();
 const PAGE = 10;
 moreBtn.onclick = () => moreVideos();
 quality.onchange = () => { if (currentId) playId(currentId); };
+engine.onchange = () => { if (currentId) playId(currentId); };
 function showSpin(t) { spintext.textContent = t || 'Loading…'; spinner.classList.add('on'); stage.classList.add('loading'); }
 function hideSpin() { spinner.classList.remove('on'); stage.classList.remove('loading'); }
 v.addEventListener('progress', () => {
@@ -214,7 +220,7 @@ async function playId(id, name) {
   nowbox.classList.add('on');
   nowimg.src = '/thumb?v=' + encodeURIComponent(id);
   nowtitle.textContent = name || id;
-  v.src = '/stream?v=' + encodeURIComponent(id) + '&h=' + encodeURIComponent(quality.value);
+  v.src = '/stream?v=' + encodeURIComponent(id) + '&h=' + encodeURIComponent(quality.value) + '&mode=' + encodeURIComponent(engine.value);
   v.load();
   v.play().catch(()=>{});
   try {

@@ -110,12 +110,18 @@ app.get('/stream', async (req, res) => {
   if (!allowed.includes(h)) h = req.query.q === 'high' ? 480 : 360;
   // best at-or-below selected height, https H264+AAC first (fast direct fetch).
   const format = `bestvideo[height<=${h}][vcodec^=avc][protocol=https]+bestaudio[acodec^=mp4a][protocol=https]/best[height<=${h}][vcodec^=avc][protocol=https]/best[height<=${h}][protocol=https]/best[protocol=https]/best`;
-  console.log(`[stream] live ${url} h<=${h}`);
+  console.log(`[stream] live ${url} h<=${h} mode=${req.query.mode === 'std' ? 'std' : 'live'}`);
   try {
     const urls = await getDirectUrls(url, format);
     const args = [];
     for (const u of urls.slice(0, 2)) args.push('-i', u);
-    args.push('-c', 'copy', '-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1');
+    if (req.query.mode === 'std') {
+      args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
+        '-c:a', 'aac', '-b:a', '128k');
+    } else {
+      args.push('-c', 'copy');
+    }
+    args.push('-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1');
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Cache-Control', 'no-store');
     const ff = spawn('ffmpeg', ['-y', '-v', 'error', ...args], { windowsHide: true });
@@ -127,7 +133,7 @@ app.get('/stream', async (req, res) => {
         console.error('[ffmpeg] ' + line.slice(0, 300));
       }
     });
-    ff.on('close', () => res.end());
+    ff.on('close', () => { if (!res.writableEnded) res.end(); });
     req.on('close', () => { try { ff.kill(); } catch {} });
   } catch (e) {
     console.error(e);
