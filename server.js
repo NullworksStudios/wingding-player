@@ -34,7 +34,14 @@ function runYtDlp(args) {
 // YouTube bot-checks datacenter IPs ("Sign in to confirm you're not a bot").
 // Mitigations: alternate player clients first (override with YT_CLIENTS),
 // plus optional login cookies via YT_COOKIES env (Netscape cookies.txt content).
-const YT_CLIENTS = process.env.YT_CLIENTS || 'mweb,tv,android_vr,android,web';
+const YT_CLIENTS = process.env.YT_CLIENTS || 'mweb,web_embedded,tv,android_vr,android,web';
+const POT_URL = process.env.POT_URL || 'http://127.0.0.1:4416';
+async function potStatus() {
+  try {
+    const r = await fetch(POT_URL, { signal: AbortSignal.timeout(3000) });
+    return 'up(http ' + r.status + ')';
+  } catch (e) { return 'down(' + (e.cause?.message || e.message) + ')'; }
+}
 let cookieFile = null;
 if (process.env.YT_COOKIES) {
   try {
@@ -114,6 +121,7 @@ app.get('/stream', async (req, res) => {
     req.on('close', () => { try { ff.kill(); } catch {} });
   } catch (e) {
     console.error(e);
+    try { console.error('[pot] provider status: ' + await potStatus()); } catch {}
     if (!res.headersSent) res.status(502).send('Stream failed. Try another video.');
   }
 });
@@ -172,4 +180,7 @@ app.get('/thumb', async (req, res) => {
     res.status(502).send('Thumb failed');
   }
 });
-app.listen(PORT, () => console.log(`Listening on ${PORT} (yt-dlp: ${YTDLP})`));
+app.listen(PORT, async () => {
+  console.log(`Listening on ${PORT} (yt-dlp: ${YTDLP})`);
+  console.log('[pot] provider ' + POT_URL + ' -> ' + await potStatus());
+});
