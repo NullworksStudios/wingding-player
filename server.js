@@ -34,7 +34,7 @@ function runYtDlp(args) {
 // YouTube bot-checks datacenter IPs ("Sign in to confirm you're not a bot").
 // Mitigations: alternate player clients first (override with YT_CLIENTS),
 // plus optional login cookies via YT_COOKIES env (Netscape cookies.txt content).
-const YT_CLIENTS = process.env.YT_CLIENTS || 'tv,android,web';
+const YT_CLIENTS = process.env.YT_CLIENTS || 'tv,android_vr,android,web';
 let cookieFile = null;
 if (process.env.YT_COOKIES) {
   try {
