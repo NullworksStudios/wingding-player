@@ -27,9 +27,5 @@ node server.js
   If streams still fail, the fallback is login cookies: export `youtube.com` cookies
   ("Get cookies.txt LOCALLY" with a throwaway account) into a `YT_COOKIES` Railway
   variable and redeploy.
-- Egress proxy: set `PROXY_URL` (http/socks5 URL, or `HTTPS_PROXY`/`HTTP_PROXY`) to route
-  all YouTube traffic through a clean IP. Note: full VPN apps need a tun device and
-  won't run in this container — only proxy URLs work. Free public proxies are usually
-  slow, dead, or already flagged; bring your own.
 - YouTube rate-limits datacenter IPs and changes parsing often. If `/api/info` returns 502, redeploy to get latest yt-dlp (`pip install -U yt-dlp` in Dockerfile build does this).
 - Only use for content you have the right to view, and only on networks where you have permission. Circumventing school/work filters may violate acceptable-use policy. Respect YouTube ToS and copyright.
