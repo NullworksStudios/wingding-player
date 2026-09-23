@@ -55,7 +55,19 @@ function baseArgs() {
   if (process.env.YT_VERBOSE === '1') a.push('-v');
   if (YT_CLIENTS) a.push('--extractor-args', `youtube:player_client=${YT_CLIENTS}`);
   if (cookieFile) a.push('--cookies', cookieFile);
+  if (PROXY_URL) a.push('--proxy', PROXY_URL);
   return a;
+}
+// Optional egress proxy (clean IP in front of flagged hosting IPs).
+// yt-dlp takes --proxy; ffmpeg only reads lowercase env vars, so export both.
+const PROXY_URL = process.env.PROXY_URL || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || null;
+function ffEnv() {
+  if (!PROXY_URL) return undefined;
+  return {
+    ...process.env,
+    http_proxy: process.env.http_proxy || PROXY_URL,
+    https_proxy: process.env.https_proxy || PROXY_URL
+  };
 }
 
 // server/js/server.js:12
@@ -142,7 +154,7 @@ app.get('/stream', async (req, res) => {
     args.push('-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1');
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Cache-Control', 'no-store');
-    const ff = spawn('ffmpeg', ['-y', '-v', 'info', ...args], { windowsHide: true });
+    const ff = spawn('ffmpeg', ['-y', '-v', 'info', ...args], { windowsHide: true, env: ffEnv() });
     ff.stdout.pipe(res);
     // log input summary once (proves which codecs actually arrived), errors always
     let loggedInput = false;
