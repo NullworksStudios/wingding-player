@@ -52,6 +52,7 @@ if (process.env.YT_COOKIES) {
 }
 function baseArgs() {
   const a = ['--no-playlist', '--no-warnings'];
+  if (process.env.YT_VERBOSE === '1') a.push('-v');
   if (YT_CLIENTS) a.push('--extractor-args', `youtube:player_client=${YT_CLIENTS}`);
   if (cookieFile) a.push('--cookies', cookieFile);
   return a;
@@ -89,7 +90,10 @@ function getDirectUrls(url, format) {
     child.stdout.on('data', d => { out += d; });
     child.stderr.on('data', d => { err += d; });
     child.on('close', code => {
-      if (code !== 0) return reject(new Error('yt-dlp -g exit ' + code + ' ' + err.slice(0, 200)));
+      if (code !== 0) {
+        const trim = process.env.YT_VERBOSE === '1' ? err.slice(-4000) : err.slice(0, 200);
+        return reject(new Error('yt-dlp -g exit ' + code + ' ' + trim));
+      }
       const urls = out.trim().split('\n').filter(Boolean);
       if (!urls.length) return reject(new Error('no urls'));
       resolve(urls);
