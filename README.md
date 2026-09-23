@@ -19,11 +19,13 @@ node server.js
 
 ## Notes / limits
 - Bandwidth: video is proxied through Railway. Default 360p; pick 144p–1080p in the sidebar (higher = more egress).
-- Railway bot-check: YouTube often shows "Sign in to confirm you're not a bot" to datacenter IPs.
-  The server defaults to the `android` player client (`YT_CLIENTS` env, e.g. `android,web`)
-  which usually avoids it. If it still fails, add login cookies:
-  1. In your desktop browser install "Get cookies.txt LOCALLY", export `youtube.com` cookies.
-  2. Railway → Variables → add `YT_COOKIES` with the full file content → redeploy.
-  Refresh cookies when streams start failing again.
+- Railway bot-check: YouTube shows "Sign in to confirm you're not a bot" to datacenter IPs.
+  The Docker image runs a PO-token sidecar (`bgutil-ytdlp-pot-provider`, same container,
+  `127.0.0.1:4416`) that solves YouTube's challenge with no login — the yt-dlp plugin
+  picks it up automatically. The server leads with the `mweb` client (`YT_CLIENTS` env
+  overrides, e.g. `mweb,tv,android_vr,android,web`), which is the recommended pairing.
+  If streams still fail, the fallback is login cookies: export `youtube.com` cookies
+  ("Get cookies.txt LOCALLY" with a throwaway account) into a `YT_COOKIES` Railway
+  variable and redeploy.
 - YouTube rate-limits datacenter IPs and changes parsing often. If `/api/info` returns 502, redeploy to get latest yt-dlp (`pip install -U yt-dlp` in Dockerfile build does this).
 - Only use for content you have the right to view, and only on networks where you have permission. Circumventing school/work filters may violate acceptable-use policy. Respect YouTube ToS and copyright.
