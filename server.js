@@ -83,7 +83,7 @@ app.get('/api/info', (req, res) => {
 // Live pipe: yt-dlp resolves direct https URLs, ffmpeg copies them into
 // fragmented MP4 straight to the browser. First byte in ~3s, no temp file,
 // no merge wait. (Old temp-file code measured 4x slower: HLS fetch + merge + faststart.)
-function getDirectUrls(url, format) {
+function getDirectUrlsOnce(url, format) {
   return new Promise((resolve, reject) => {
     const child = runYtDlp(['-f', format, ...baseArgs(), '-g', url]);
     let out = '', err = '';
@@ -100,6 +100,21 @@ function getDirectUrls(url, format) {
     });
     child.on('error', reject);
   });
+}
+// Flagged datacenter IPs fail intermittently (LOGIN_REQUIRED on some attempts,
+// success on others), so retry with a fresh session before giving up.
+async function getDirectUrls(url, format, attempts = 3) {
+  let lastErr;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      if (i > 1) {
+        console.log(`[stream] retry ${i}/${attempts} for ${url}`);
+        await new Promise(r => setTimeout(r, 2000 * i));
+      }
+      return await getDirectUrlsOnce(url, format);
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
 }
 // Piped through server so client never touches youtube.com/googlevideo.com.
 app.get('/stream', async (req, res) => {
