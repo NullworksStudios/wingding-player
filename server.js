@@ -120,7 +120,13 @@ app.get('/stream', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     const ff = spawn('ffmpeg', ['-y', '-v', 'error', ...args], { windowsHide: true });
     ff.stdout.pipe(res);
-    ff.stderr.on('data', d => console.error('[ffmpeg] ' + String(d).slice(0, 200)));
+    // ffmpeg chatters routine progress to stderr; only real problems deserve error level
+    ff.stderr.on('data', d => {
+      const line = String(d);
+      if (/error|fail|denied|forbidden|invalid|unable|could not|timed out|403|404/i.test(line)) {
+        console.error('[ffmpeg] ' + line.slice(0, 300));
+      }
+    });
     ff.on('close', () => res.end());
     req.on('close', () => { try { ff.kill(); } catch {} });
   } catch (e) {
