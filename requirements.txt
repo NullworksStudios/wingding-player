@@ -1,2 +1,1 @@
 yt-dlp>=8
-bgutil-ytdlp-pot-provider==2.0.0
