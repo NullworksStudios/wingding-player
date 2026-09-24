@@ -191,6 +191,10 @@ function startDownload(id, h, url) {
   jobs.set(key, st);
   try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch {}
   console.log(`[full] downloading ${key}`);
+  attemptDownload(id, h, url, key, file, st, 1);
+  return key;
+}
+function attemptDownload(id, h, url, key, file, st, attempt) {
   const child = runYtDlp(['-f', formatFor(h), '--merge-output-format', 'mp4',
     '--postprocessor-args', 'ffmpeg:-movflags faststart',
     ...baseArgs(), '--newline', '--progress', '-o', file, url]);
@@ -214,6 +218,9 @@ function startDownload(id, h, url) {
       const size = fs.statSync(file).size;
       jobs.set(key, { state: 'ready', percent: 100, downBytes: size, totalBytes: size, speed: '', error: '' });
       console.log(`[full] ready ${key} (${mb(size)})`);
+    } else if (attempt < 3) {
+      console.log(`[full] retry ${attempt + 1}/3 for ${key}`);
+      setTimeout(() => attemptDownload(id, h, url, key, file, st, attempt + 1), 3000 * attempt);
     } else {
       const reason = (errTail.match(/ERROR:\s*(.+)/) || [])[1] || ('exit ' + code);
       jobs.set(key, { state: 'error', percent: st.percent || 0, downBytes: null, totalBytes: null, speed: '', error: reason.slice(0, 200) });
