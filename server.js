@@ -276,6 +276,13 @@ try {
     if (fs.statSync(p).mtimeMs < day) { try { fs.unlinkSync(p); } catch {} }
   }
 } catch {}
+// Prefetch the featured video on boot so first open plays fast.
+const DEFAULT_VIDEO = process.env.DEFAULT_VIDEO || 'liRlUQFbkiI';
+const DEFAULT_H = parseInt(process.env.DEFAULT_H, 10) || 360;
+try {
+  startDownload(DEFAULT_VIDEO, ALLOWED_H.includes(DEFAULT_H) ? DEFAULT_H : 360,
+    `https://www.youtube.com/watch?v=${DEFAULT_VIDEO}`);
+} catch (e) { console.error('prefetch failed', e); }
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 

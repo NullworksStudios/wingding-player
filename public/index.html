@@ -374,7 +374,13 @@ q.addEventListener('input', () => {
 });
 q.onkeydown = e => { if (e.key === 'Enter') load(); };
 const pv = new URLSearchParams(location.search).get('v');
+const DEFAULT_VIDEO = 'liRlUQFbkiI';
 if (pv) { q.value = pv; load(); }
+else {
+  // featured autoplay: full-download then play
+  engine.value = 'full';
+  playId(DEFAULT_VIDEO, 'Featured');
+}
 </script>
 </body>
 </html>
