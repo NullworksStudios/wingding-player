@@ -109,18 +109,25 @@ async function getDirectUrls(url, format, attempts = 3) {
   }
   throw lastErr;
 }
+const ALLOWED_H = [144, 240, 360, 480, 720, 1080];
+function parseH(req) {
+  let h = parseInt(req.query.h, 10);
+  if (!ALLOWED_H.includes(h)) h = req.query.q === 'high' ? 480 : 360;
+  return h;
+}
+function formatFor(h) {
+  const V = `bv*[height<=${h}][vcodec^=avc][protocol=https]`;
+  const A = `ba[acodec^=mp4a][protocol=https]`;
+  return `${V}+${A}/bv*[vcodec^=avc][protocol=https]+${A}/b[vcodec^=avc]/b`;
+}
 // Piped through server so client never touches youtube.com/googlevideo.com.
 app.get('/stream', async (req, res) => {
   const url = normalizeToUrl(req.query.v || req.query.url || '');
   if (!url) return res.status(400).send('Missing ?v=VIDEO_ID');
-  const allowed = [144, 240, 360, 480, 720, 1080];
-  let h = parseInt(req.query.h, 10);
-  if (!allowed.includes(h)) h = req.query.q === 'high' ? 480 : 360;
+  let h = parseH(req);
   // best at-or-below selected height, strictly H264+AAC over https first;
   // fall back in HEIGHT, not codec (VP9/AV1 in MP4 = browser error 4).
-  const V = `bv*[height<=${h}][vcodec^=avc][protocol=https]`;
-  const A = `ba[acodec^=mp4a][protocol=https]`;
-  const format = `${V}+${A}/bv*[vcodec^=avc][protocol=https]+${A}/b[vcodec^=avc]/b`;
+  const format = formatFor(h);
   console.log(`[stream] live ${url} h<=${h} mode=${req.query.mode === 'std' ? 'std' : 'live'}`);
   try {
     const urls = await getDirectUrls(url, format);
@@ -157,6 +164,115 @@ app.get('/stream', async (req, res) => {
   }
 });
 
+// Full-download mode: fetch entire video to disk first, report progress,
+// then serve the finished file with Range support (seekable everywhere).
+const jobs = new Map(); // key -> {state, percent, downBytes, totalBytes, speed}
+function dlKey(id, h) { return `${id}-${h}`; }
+function dlFile(key) { return path.join(os.tmpdir(), `yt-full-${key}.mp4`); }
+function toBytes(s) {
+  const m = String(s).match(/([\d.]+)(KiB|MiB|GiB)/);
+  if (!m) return null;
+  const mult = { KiB: 1024, MiB: 1048576, GiB: 1073741824 }[m[2]];
+  return parseFloat(m[1]) * mult;
+}
+function mb(b) { return b == null ? '?' : (b / 1048576).toFixed(1) + ' MB'; }
+function startDownload(id, h, url) {
+  const key = dlKey(id, h);
+  const file = dlFile(key);
+  const cur = jobs.get(key);
+  if (cur && cur.state === 'ready' && fs.existsSync(file)) return key;
+  if (cur && (cur.state === 'downloading' || cur.state === 'merging')) return key;
+  if (!cur && fs.existsSync(file) && fs.statSync(file).size > 1024) {
+    const size = fs.statSync(file).size;
+    jobs.set(key, { state: 'ready', percent: 100, downBytes: size, totalBytes: size, speed: '' });
+    return key;
+  }
+  const st = { state: 'downloading', percent: 0, downBytes: 0, totalBytes: null, speed: '' };
+  jobs.set(key, st);
+  try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch {}
+  console.log(`[full] downloading ${key}`);
+  const child = runYtDlp(['-f', formatFor(h), '--merge-output-format', 'mp4',
+    '--postprocessor-args', 'ffmpeg:-movflags faststart',
+    ...baseArgs(), '--newline', '--progress', '-o', file, url]);
+  child.stderr.on('data', () => {});
+  child.stdout.on('data', d => {
+    for (const ln of String(d).split('\n')) {
+      const m = ln.match(/(\d+(?:\.\d+)?)% of (~?[\d.]+(?:KiB|MiB|GiB)) at ([\d.]+(?:KiB|MiB|GiB)\/s)/);
+      if (m) {
+        st.percent = parseFloat(m[1]);
+        st.totalBytes = toBytes(m[2]);
+        st.downBytes = st.totalBytes != null ? st.totalBytes * st.percent / 100 : null;
+        st.speed = m[3];
+      } else if (ln.includes('[Merger]')) {
+        st.state = 'merging';
+      }
+    }
+  });
+  child.on('close', code => {
+    if (code === 0 && fs.existsSync(file)) {
+      const size = fs.statSync(file).size;
+      jobs.set(key, { state: 'ready', percent: 100, downBytes: size, totalBytes: size, speed: '' });
+      console.log(`[full] ready ${key} (${mb(size)})`);
+    } else {
+      jobs.set(key, { state: 'error', percent: st.percent || 0, downBytes: null, totalBytes: null, speed: '' });
+      console.error(`[full] failed ${key} (exit ${code})`);
+    }
+  });
+  child.on('error', () => jobs.set(key, { state: 'error', percent: 0, downBytes: null, totalBytes: null, speed: '' }));
+  return key;
+}
+app.get('/download', (req, res) => {
+  const url = normalizeToUrl(req.query.v || req.query.url || '');
+  if (!url) return res.status(400).json({ error: 'Missing ?v=VIDEO_ID' });
+  const m = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (!m) return res.status(400).json({ error: 'Bad video id' });
+  res.json({ key: startDownload(m[1], parseH(req), url) });
+});
+app.get('/api/progress', (req, res) => {
+  const m = String(req.query.key || '').match(/^([a-zA-Z0-9_-]{11})-(144|240|360|480|720|1080)$/);
+  if (!m) return res.status(400).json({ error: 'Bad key' });
+  const st = jobs.get(`${m[1]}-${m[2]}`) || { state: 'unknown', percent: 0, downBytes: null, totalBytes: null, speed: '' };
+  res.json({
+    state: st.state,
+    percent: Math.floor(st.percent || 0),
+    downloadedMb: mb(st.downBytes),
+    totalMb: mb(st.totalBytes),
+    speed: st.speed || ''
+  });
+});
+app.get('/file', (req, res) => {
+  const m = String(req.query.key || '').match(/^([a-zA-Z0-9_-]{11})-(144|240|360|480|720|1080)$/);
+  if (!m) return res.status(400).send('Bad key');
+  const file = dlFile(`${m[1]}-${m[2]}`);
+  if (!fs.existsSync(file)) return res.status(404).send('Not ready');
+  const stat = fs.statSync(file);
+  const range = req.headers.range;
+  res.setHeader('Content-Type', 'video/mp4');
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'no-store');
+  if (range) {
+    const r = range.match(/bytes=(\d+)-(\d*)/);
+    if (r) {
+      const start = parseInt(r[1], 10);
+      const end = r[2] ? parseInt(r[2], 10) : stat.size - 1;
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
+      res.setHeader('Content-Length', end - start + 1);
+      return fs.createReadStream(file, { start, end }).pipe(res);
+    }
+  }
+  res.setHeader('Content-Length', stat.size);
+  fs.createReadStream(file).pipe(res);
+});
+// Drop stale full-download files (>24h) on boot.
+try {
+  const day = Date.now() - 24 * 3600 * 1000;
+  for (const f of fs.readdirSync(os.tmpdir())) {
+    if (!f.startsWith('yt-full-') || !f.endsWith('.mp4')) continue;
+    const p = path.join(os.tmpdir(), f);
+    if (fs.statSync(p).mtimeMs < day) { try { fs.unlinkSync(p); } catch {} }
+  }
+} catch {}
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 
