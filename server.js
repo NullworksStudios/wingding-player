@@ -184,17 +184,18 @@ function startDownload(id, h, url) {
   if (cur && (cur.state === 'downloading' || cur.state === 'merging')) return key;
   if (!cur && fs.existsSync(file) && fs.statSync(file).size > 1024) {
     const size = fs.statSync(file).size;
-    jobs.set(key, { state: 'ready', percent: 100, downBytes: size, totalBytes: size, speed: '' });
+    jobs.set(key, { state: 'ready', percent: 100, downBytes: size, totalBytes: size, speed: '', error: '' });
     return key;
   }
-  const st = { state: 'downloading', percent: 0, downBytes: 0, totalBytes: null, speed: '' };
+  const st = { state: 'downloading', percent: 0, downBytes: 0, totalBytes: null, speed: '', error: '' };
   jobs.set(key, st);
   try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch {}
   console.log(`[full] downloading ${key}`);
   const child = runYtDlp(['-f', formatFor(h), '--merge-output-format', 'mp4',
     '--postprocessor-args', 'ffmpeg:-movflags faststart',
     ...baseArgs(), '--newline', '--progress', '-o', file, url]);
-  child.stderr.on('data', () => {});
+  let errTail = '';
+  child.stderr.on('data', d => { errTail = (errTail + String(d)).slice(-2000); });
   child.stdout.on('data', d => {
     for (const ln of String(d).split('\n')) {
       const m = ln.match(/(\d+(?:\.\d+)?)% of (~?[\d.]+(?:KiB|MiB|GiB)) at ([\d.]+(?:KiB|MiB|GiB)\/s)/);
@@ -211,14 +212,15 @@ function startDownload(id, h, url) {
   child.on('close', code => {
     if (code === 0 && fs.existsSync(file)) {
       const size = fs.statSync(file).size;
-      jobs.set(key, { state: 'ready', percent: 100, downBytes: size, totalBytes: size, speed: '' });
+      jobs.set(key, { state: 'ready', percent: 100, downBytes: size, totalBytes: size, speed: '', error: '' });
       console.log(`[full] ready ${key} (${mb(size)})`);
     } else {
-      jobs.set(key, { state: 'error', percent: st.percent || 0, downBytes: null, totalBytes: null, speed: '' });
-      console.error(`[full] failed ${key} (exit ${code})`);
+      const reason = (errTail.match(/ERROR:\s*(.+)/) || [])[1] || ('exit ' + code);
+      jobs.set(key, { state: 'error', percent: st.percent || 0, downBytes: null, totalBytes: null, speed: '', error: reason.slice(0, 200) });
+      console.error(`[full] failed ${key}: ${reason.slice(0, 300)}`);
     }
   });
-  child.on('error', () => jobs.set(key, { state: 'error', percent: 0, downBytes: null, totalBytes: null, speed: '' }));
+  child.on('error', () => jobs.set(key, { state: 'error', percent: 0, downBytes: null, totalBytes: null, speed: '', error: 'spawn failed' }));
   return key;
 }
 app.get('/download', (req, res) => {
@@ -231,13 +233,14 @@ app.get('/download', (req, res) => {
 app.get('/api/progress', (req, res) => {
   const m = String(req.query.key || '').match(/^([a-zA-Z0-9_-]{11})-(144|240|360|480|720|1080)$/);
   if (!m) return res.status(400).json({ error: 'Bad key' });
-  const st = jobs.get(`${m[1]}-${m[2]}`) || { state: 'unknown', percent: 0, downBytes: null, totalBytes: null, speed: '' };
+  const st = jobs.get(`${m[1]}-${m[2]}`) || { state: 'unknown', percent: 0, downBytes: null, totalBytes: null, speed: '', error: '' };
   res.json({
     state: st.state,
     percent: Math.floor(st.percent || 0),
     downloadedMb: mb(st.downBytes),
     totalMb: mb(st.totalBytes),
-    speed: st.speed || ''
+    speed: st.speed || '',
+    error: st.error || ''
   });
 });
 app.get('/file', (req, res) => {

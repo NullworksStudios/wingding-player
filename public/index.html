@@ -266,7 +266,7 @@ async function playFull(id, name) {
     } else if (s.state === 'error') {
       clearInterval(fullTimer); fullTimer = null;
       hideSpin();
-      err.textContent = 'Download failed. Try another video.';
+      err.textContent = 'Download failed' + (s.error ? ': ' + s.error : '. Try another video.');
     } else {
       const label = s.state === 'merging' ? 'Merging…' :
         `Downloading… ${s.percent}% (${s.downloadedMb} of ${s.totalMb} at ${s.speed})`;
