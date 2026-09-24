@@ -44,7 +44,7 @@ if (process.env.YT_COOKIES) {
   } catch (e) { console.error('Failed to write cookies file', e); }
 }
 function baseArgs() {
-  const a = ['--no-playlist', '--no-warnings'];
+  const a = ['--no-playlist', '--no-warnings', '--js-runtimes', 'node'];
   if (process.env.YT_VERBOSE === '1') a.push('-v');
   if (YT_CLIENTS) a.push('--extractor-args', `youtube:player_client=${YT_CLIENTS}`);
   if (cookieFile) a.push('--cookies', cookieFile);

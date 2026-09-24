@@ -1,1 +1,1 @@
-yt-dlp>=8
+yt-dlp[default]>=8
