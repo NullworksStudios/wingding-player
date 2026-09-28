@@ -20,27 +20,37 @@ body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0;
 .b3 { background: #ff8a3d; top: 40%; left: 55%; width: 35vmax; height: 35vmax; opacity: .16; animation: drift1 30s ease-in-out infinite alternate-reverse; }
 @keyframes drift1 { to { transform: translate(6vmax, 4vmax) scale(1.15); } }
 @keyframes drift2 { to { transform: translate(-6vmax, -5vmax) scale(1.1); } }
-/* layout */
-.layout { display: grid; grid-template-columns: var(--side-w) 1fr; min-height: 100vh; }
-/* sidebar */
-#sidebar { padding: 1.4rem 1.1rem; border-right: 1px solid var(--line);
-  background: rgba(12,12,17,.72); backdrop-filter: blur(16px);
-  display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-.brand h1 { margin: .5rem 0 0; font-size: 1.3rem; letter-spacing: -.02em;
+/* layout: player on top, control bar pinned to the bottom */
+.layout { display: flex; flex-direction: column; min-height: 100vh; }
+main { order: 1; flex: 1; padding: 1.6rem 1.4rem 2rem; max-width: 900px; width: 100%; margin: 0 auto; }
+/* bottom control bar */
+#sidebar { order: 2; position: sticky; bottom: 0; z-index: 10;
+  display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: .8rem 1rem;
+  padding: .9rem 1.2rem calc(.9rem + env(safe-area-inset-bottom));
+  background: rgba(12,12,17,.82); backdrop-filter: blur(18px);
+  border-top: 1px solid var(--line); border-radius: 20px 20px 0 0;
+  box-shadow: 0 -14px 44px rgba(0,0,0,.55);
+  animation: slideup .45s cubic-bezier(.2,.9,.3,1.1); }
+@keyframes slideup { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.brand { display: flex; align-items: center; gap: .6rem; flex: 0 0 auto; }
+.brand h1 { margin: 0; font-size: 1.05rem; white-space: nowrap; } letter-spacing: -.02em;
   background: linear-gradient(92deg, #fff 20%, var(--accent2) 55%, var(--accent) 80%);
   background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: shine 6s linear infinite; }
-.logo { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 1.05rem; color: #fff;
+.logo { width: 34px; height: 34px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: .9rem; color: #fff; flex: 0 0 auto;
   background: linear-gradient(135deg, var(--accent), #7a0d05);
   box-shadow: 0 6px 20px rgba(255,59,47,.4); animation: logofloat 4s ease-in-out infinite; }
 .logo span { color: var(--accent2); }
 @keyframes logofloat { 50% { transform: translateY(-3px) rotate(-4deg); } }
 @keyframes shine { to { background-position: 200% center; } }
-.brand p { color: var(--muted); font-size: .8rem; margin: .35rem 0 0; line-height: 1.45; }
-.field label { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
-  color: var(--muted); margin-bottom: .35rem; }
-#row { display: flex; flex-direction: column; gap: .5rem; }
+.brand p { display: none; }
+.field { flex: 1 1 300px; min-width: 0; }
+.field label { display: none; }
+#row { display: flex; flex-direction: row; gap: .5rem; }
+#row input { flex: 1; min-width: 0; }
+#row select { flex: 0 0 auto; width: auto; }
+#row button { flex: 0 0 auto; }
 input, select { width: 100%; padding: .65rem .8rem; border-radius: 10px; border: 1px solid var(--line);
   background: #101016; color: var(--text); font-size: .95rem; transition: border-color .2s, box-shadow .2s; }
 input:focus { outline: none; border-color: rgba(255,59,47,.6); box-shadow: 0 0 0 3px rgba(255,59,47,.18); }
@@ -50,12 +60,12 @@ button { padding: .7rem 1rem; border-radius: 10px; border: none; cursor: pointer
   transition: transform .12s, filter .15s, background-position .3s; }
 button:hover { filter: brightness(1.12); background-position: 80% 50%; }
 button:active { transform: scale(.96); }
-#hint { font-size: .78rem; color: var(--muted); line-height: 1.5; border-top: 1px solid var(--line); padding-top: .8rem; }
-#nowbox { display: none; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card);
-  animation: rise .3s ease; }
-#nowbox.on { display: block; }
-#nowbox img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
-#nowbox div { padding: .5rem .65rem; font-size: .82rem; }
+#hint { display: none; }
+#nowbox { display: none; flex: 0 1 220px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card);
+  animation: rise .3s ease; align-items: center; gap: .5rem; padding: .3rem; }
+#nowbox.on { display: flex; }
+#nowbox img { width: 72px; aspect-ratio: 16/9; object-fit: cover; display: block; border-radius: 8px; }
+#nowbox div { padding: 0 .3rem 0 0; font-size: .75rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 /* main */
 main { padding: 1.6rem 1.4rem 4rem; max-width: 900px; width: 100%; margin: 0 auto; }
@@ -82,7 +92,7 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 #barfill { position: absolute; inset: 0 auto 0 0; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2));
   transition: width .2s; box-shadow: 0 0 10px rgba(255,59,47,.8); }
 #err { color: #ff7070; min-height: 1.4em; }
-#results { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: .6rem; }
+#results, #saved { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: .6rem; }
 .card { cursor: pointer; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--card);
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s; animation: rise .45s cubic-bezier(.2,.9,.3,1.2) backwards; }
 .card:nth-child(2) { animation-delay: .05s; } .card:nth-child(3) { animation-delay: .1s; }
@@ -95,6 +105,10 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 .card:hover img { transform: scale(1.07); }
 .badge { position: absolute; right: 8px; bottom: 8px; font-size: .72rem; font-weight: 600;
   background: rgba(0,0,0,.78); padding: 2px 7px; border-radius: 6px; }
+.rm { position: absolute; left: 8px; top: 8px; font-size: .75rem; font-weight: 700;
+  background: rgba(0,0,0,.78); color: #fff; border: none; border-radius: 6px;
+  padding: 2px 8px; cursor: pointer; }
+#safe { white-space: nowrap; }
 .playov { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0;
   background: rgba(0,0,0,.35); transition: opacity .2s; }
 .card:hover .playov { opacity: 1; }
@@ -110,10 +124,11 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
   background-size: 200% 100%; animation: shimmer 1.2s infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 #menuBtn { display: none; }
-/* reactive: collapse sidebar on small screens */
-@media (max-width: 820px) {
-  .layout { grid-template-columns: 1fr; }
-  #sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+/* reactive: bar wraps neatly on narrow screens */
+@media (max-width: 700px) {
+  #sidebar { gap: .6rem; }
+  .brand h1 { display: none; }
+  .field { flex-basis: 100%; }
   #nowbox { display: none !important; }
 }
 </style>
@@ -133,17 +148,17 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 <select id="quality" title="Quality">
 <option value="144">144p</option>
 <option value="240">240p</option>
-<option value="360" selected>360p</option>
-<option value="480">480p</option>
+<option value="360">360p</option>
+<option value="480" selected>480p</option>
 <option value="720">720p</option>
 <option value="1080">1080p</option>
 </select>
-<select id="engine" title="Engine: Live is fast copy, Compatible re-encodes, Full downloads first">
+<select id="engine" title="Engine: Live streams instantly, Full downloads first">
 <option value="live" selected>Live</option>
-<option value="std">Compatible</option>
 <option value="full">Full</option>
 </select>
 <button id="go">Go</button>
+<button id="safe" title="Save current video on this device">Safe</button>
 </div></div>
 <div id="nowbox"><img id="nowimg" alt=""><div id="nowtitle"></div></div>
 <div id="hint">Live search starts as you type (3+ chars). Quality switches reload the video instantly. No youtube.com / googlevideo.com / i.ytimg.com requests from your browser.</div>
@@ -158,6 +173,8 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 <div id="err"></div>
 <div id="results"></div>
 <button id="more" style="display:none;width:100%;margin-top:1rem;">Show more videos</button>
+<h3 id="savedh" style="display:none;margin:1.4rem 0 .2rem;">Saved on this device</h3>
+<div id="saved"></div>
 </main>
 </div>
 <script>
@@ -170,7 +187,12 @@ const q = document.getElementById('q'), go = document.getElementById('go'),
       barfill = document.getElementById('barfill'), barbuf = document.getElementById('barbuf'),
       bar = document.getElementById('bar'),
       nowbox = document.getElementById('nowbox'), nowimg = document.getElementById('nowimg'), nowtitle = document.getElementById('nowtitle'),
-      moreBtn = document.getElementById('more');
+      moreBtn = document.getElementById('more'),
+      safeBtn = document.getElementById('safe'),
+      savedBox = document.getElementById('saved'),
+      savedH = document.getElementById('savedh');
+safeBtn.onclick = () => safeVideo();
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 let currentId = null, typeTimer = null, searchSeq = 0, lastQuery = '', shownCount = 0;
 let shownIds = new Set();
 const PAGE = 10;
@@ -222,7 +244,7 @@ async function playId(id, name) {
   nowimg.src = '/thumb?v=' + encodeURIComponent(id);
   nowtitle.textContent = name || id;
   if (engine.value === 'full') return playFull(id, name);
-  v.src = '/stream?v=' + encodeURIComponent(id) + '&h=' + encodeURIComponent(quality.value) + '&mode=' + encodeURIComponent(engine.value);
+  v.src = '/stream?v=' + encodeURIComponent(id) + '&h=' + encodeURIComponent(quality.value);
   v.load();
   v.play().catch(()=>{});
   try {
@@ -268,13 +290,131 @@ async function playFull(id, name) {
       hideSpin();
       err.textContent = 'Download failed' + (s.error ? ': ' + s.error : '. Try another video.');
     } else {
-      const label = s.state === 'merging' ? 'Merging…' :
+      const waiting = !s.totalMb || s.totalMb === '?';
+      const label = s.state === 'merging' ? 'Merging…' : waiting ? 'Contacting YouTube…' :
         `Downloading… ${s.percent}% (${s.downloadedMb} of ${s.totalMb} at ${s.speed})`;
       barfill.style.width = (s.percent || 0) + '%';
       spintext.textContent = label;
       title.textContent = label;
     }
   }, 1000);
+}
+function getSaved() {
+  try { return JSON.parse(localStorage.getItem('wingding-saved') || '[]'); }
+  catch { return []; }
+}
+function setSaved(list) {
+  try { localStorage.setItem('wingding-saved', JSON.stringify(list)); } catch {}
+}
+async function safeVideo() {
+  if (!currentId) { err.textContent = 'Play or pick a video first.'; return; }
+  const id = currentId, h = quality.value;
+  err.textContent = '';
+  showSpin('Preparing save…');
+  try {
+    const d = await (await fetch('/download?v=' + encodeURIComponent(id) + '&h=' + encodeURIComponent(h))).json();
+    if (d.error || !d.key) throw new Error(d.error || 'download failed to start');
+    for (;;) {
+      const s = await (await fetch('/api/progress?key=' + encodeURIComponent(d.key))).json();
+      if (s.state === 'ready') break;
+      if (s.state === 'error') throw new Error(s.error || 'server download failed');
+      const waiting = !s.totalMb || s.totalMb === '?';
+      const label = waiting ? 'Contacting YouTube…' :
+        `Preparing… ${s.percent}% (${s.downloadedMb} of ${s.totalMb} at ${s.speed})`;
+      spintext.textContent = label;
+      title.textContent = label;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    const url = '/file?key=' + d.key;
+    const resp = await fetch(url);
+    if (!resp.ok || !resp.body) throw new Error('fetch failed (' + resp.status + ')');
+    const total = parseInt(resp.headers.get('Content-Length') || '0', 10);
+    const reader = resp.body.getReader();
+    const chunks = [];
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      got += value.length;
+      const pct = total ? Math.floor(got / total * 100) : 0;
+      const label = `Saving… ${total ? pct + '% (' + (got / 1048576).toFixed(1) + ' / ' + (total / 1048576).toFixed(1) + ' MB)' : (got / 1048576).toFixed(1) + ' MB'}`;
+      spintext.textContent = label;
+      title.textContent = label;
+      barfill.style.width = pct + '%';
+    }
+    const cache = await caches.open('wingding-v1');
+    await cache.put(url, new Response(new Blob(chunks, { type: 'video/mp4' }),
+      { headers: { 'Content-Type': 'video/mp4', 'Content-Length': String(got) } }));
+    const list = getSaved().filter(e => e.key !== d.key);
+    list.unshift({ key: d.key, id, h, title: nowtitle.textContent || id, size: got, savedAt: Date.now() });
+    setSaved(list);
+    renderSaved();
+    hideSpin();
+    barfill.style.width = '100%';
+    title.textContent = 'Saved ✓ ' + (nowtitle.textContent || id) + ' (' + (got / 1048576).toFixed(1) + ' MB)';
+  } catch (e) {
+    hideSpin();
+    err.textContent = 'Save failed: ' + (e.message || e) +
+      (String(e.message || '').includes('QuotaExceeded') ? ' — browser storage is full.' : '');
+  }
+}
+function renderSaved() {
+  const list = getSaved();
+  savedBox.innerHTML = '';
+  savedH.style.display = list.length ? 'block' : 'none';
+  for (const it of list) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const tw = document.createElement('div');
+    tw.className = 'thumb';
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.src = '/thumb?v=' + encodeURIComponent(it.id);
+    img.alt = '';
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.textContent = (it.size / 1048576).toFixed(0) + ' MB';
+    const rm = document.createElement('button');
+    rm.className = 'rm';
+    rm.textContent = '×';
+    rm.title = 'Remove saved video';
+    rm.onclick = async ev => {
+      ev.stopPropagation();
+      setSaved(getSaved().filter(e => e.key !== it.key));
+      try { const c = await caches.open('wingding-v1'); await c.delete('/file?key=' + it.key); } catch {}
+      renderSaved();
+    };
+    tw.appendChild(img); tw.appendChild(badge); tw.appendChild(rm);
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.innerHTML = '<b></b><br><small></small>';
+    meta.querySelector('b').textContent = it.title || it.id;
+    meta.querySelector('small').textContent = 'saved ' + new Date(it.savedAt).toLocaleDateString();
+    card.appendChild(tw);
+    card.appendChild(meta);
+    card.onclick = () => playSaved(it);
+    savedBox.appendChild(card);
+  }
+}
+async function playSaved(it) {
+  err.textContent = '';
+  currentId = it.id;
+  try {
+    const hit = await caches.match('/file?key=' + it.key);
+    if (hit) {
+      title.textContent = it.title + ' (saved)';
+      nowbox.classList.add('on');
+      nowimg.src = '/thumb?v=' + encodeURIComponent(it.id);
+      nowtitle.textContent = it.title;
+      v.src = URL.createObjectURL(await hit.blob());
+      v.load();
+      v.play().catch(()=>{});
+      return;
+    }
+  } catch {}
+  if (quality) quality.value = it.h || quality.value;
+  playId(it.id, it.title);
 }
 v.onerror = () => {
   hideSpin();
@@ -375,6 +515,7 @@ q.addEventListener('input', () => {
 q.onkeydown = e => { if (e.key === 'Enter') load(); };
 const pv = new URLSearchParams(location.search).get('v');
 const DEFAULT_VIDEO = 'liRlUQFbkiI';
+renderSaved();
 if (pv) { q.value = pv; load(); }
 else {
   // featured autoplay: full-download then play

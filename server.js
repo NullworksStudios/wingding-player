@@ -34,7 +34,7 @@ function runYtDlp(args) {
 // YouTube bot-checks datacenter IPs ("Sign in to confirm you're not a bot").
 // Mitigations: alternate player clients first (override with YT_CLIENTS),
 // plus optional login cookies via YT_COOKIES env (Netscape cookies.txt content).
-const YT_CLIENTS = process.env.YT_CLIENTS || 'mweb,web_embedded,tv,android_vr,android,web';
+const YT_CLIENTS = process.env.YT_CLIENTS || 'mweb,web_embedded,tv,android_vr,android,web,visionos';
 let cookieFile = null;
 if (process.env.YT_COOKIES) {
   try {
@@ -43,11 +43,13 @@ if (process.env.YT_COOKIES) {
     console.log('Using YouTube cookies from YT_COOKIES env');
   } catch (e) { console.error('Failed to write cookies file', e); }
 }
-function baseArgs() {
+// Cookies are only attached for playback (stream/file downloads), never for
+// metadata or search — keeps the session footprint minimal.
+function baseArgs(withCookies = true) {
   const a = ['--no-playlist', '--no-warnings', '--js-runtimes', 'node'];
   if (process.env.YT_VERBOSE === '1') a.push('-v');
   if (YT_CLIENTS) a.push('--extractor-args', `youtube:player_client=${YT_CLIENTS}`);
-  if (cookieFile) a.push('--cookies', cookieFile);
+  if (withCookies && cookieFile) a.push('--cookies', cookieFile);
   return a;
 }
 
@@ -55,7 +57,7 @@ function baseArgs() {
 app.get('/api/info', (req, res) => {
   const url = normalizeToUrl(req.query.v || req.query.url || '');
   if (!url) return res.status(400).json({ error: 'Provide ?v=VIDEO_ID or ?url=YOUTUBE_URL' });
-  const child = runYtDlp(['--dump-single-json', ...baseArgs(), url]);
+  const child = runYtDlp(['--dump-single-json', ...baseArgs(false), url]);
   let out = '', err = '';
   child.stdout.on('data', d => { out += d; });
   child.stderr.on('data', d => { err += d; });
@@ -112,7 +114,7 @@ async function getDirectUrls(url, format, attempts = 3) {
 const ALLOWED_H = [144, 240, 360, 480, 720, 1080];
 function parseH(req) {
   let h = parseInt(req.query.h, 10);
-  if (!ALLOWED_H.includes(h)) h = req.query.q === 'high' ? 480 : 360;
+  if (!ALLOWED_H.includes(h)) h = 480;
   return h;
 }
 function formatFor(h) {
@@ -128,17 +130,12 @@ app.get('/stream', async (req, res) => {
   // best at-or-below selected height, strictly H264+AAC over https first;
   // fall back in HEIGHT, not codec (VP9/AV1 in MP4 = browser error 4).
   const format = formatFor(h);
-  console.log(`[stream] live ${url} h<=${h} mode=${req.query.mode === 'std' ? 'std' : 'live'}`);
+  console.log(`[stream] live ${url} h<=${h}`);
   try {
     const urls = await getDirectUrls(url, format);
     const args = [];
     for (const u of urls.slice(0, 2)) args.push('-i', u);
-    if (req.query.mode === 'std') {
-      args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
-        '-c:a', 'aac', '-b:a', '128k');
-    } else {
-      args.push('-c', 'copy');
-    }
+    args.push('-c', 'copy');
     args.push('-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1');
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Cache-Control', 'no-store');
@@ -202,12 +199,12 @@ function attemptDownload(id, h, url, key, file, st, attempt) {
   child.stderr.on('data', d => { errTail = (errTail + String(d)).slice(-2000); });
   child.stdout.on('data', d => {
     for (const ln of String(d).split('\n')) {
-      const m = ln.match(/(\d+(?:\.\d+)?)% of (~?[\d.]+(?:KiB|MiB|GiB)) at ([\d.]+(?:KiB|MiB|GiB)\/s)/);
+      const m = ln.match(/(\d+(?:\.\d+)?)%\s+of\s+(~?[\d.]+(?:KiB|MiB|GiB))(?:\s+at\s+([\d.]+(?:KiB|MiB|GiB)\/s|Unknown speed))?/);
       if (m) {
         st.percent = parseFloat(m[1]);
         st.totalBytes = toBytes(m[2]);
         st.downBytes = st.totalBytes != null ? st.totalBytes * st.percent / 100 : null;
-        st.speed = m[3];
+        st.speed = m[3] && m[3] !== 'Unknown speed' ? m[3] : '';
       } else if (ln.includes('[Merger]')) {
         st.state = 'merging';
       }
@@ -285,9 +282,9 @@ try {
 } catch {}
 // Prefetch the featured video on boot so first open plays fast.
 const DEFAULT_VIDEO = process.env.DEFAULT_VIDEO || 'liRlUQFbkiI';
-const DEFAULT_H = parseInt(process.env.DEFAULT_H, 10) || 360;
+const DEFAULT_H = parseInt(process.env.DEFAULT_H, 10) || 480;
 try {
-  startDownload(DEFAULT_VIDEO, ALLOWED_H.includes(DEFAULT_H) ? DEFAULT_H : 360,
+  startDownload(DEFAULT_VIDEO, ALLOWED_H.includes(DEFAULT_H) ? DEFAULT_H : 480,
     `https://www.youtube.com/watch?v=${DEFAULT_VIDEO}`);
 } catch (e) { console.error('prefetch failed', e); }
 app.get('/health', (req, res) => res.json({ ok: true }));
@@ -304,7 +301,7 @@ app.get('/api/search', (req, res) => {
   if (!Number.isFinite(o)) o = 0;
   o = Math.min(40, Math.max(0, o));
   const total = o + n;
-  const child = runYtDlp(['--dump-single-json', '--flat-playlist', ...baseArgs(),
+  const child = runYtDlp(['--dump-single-json', '--flat-playlist', ...baseArgs(false),
     '--playlist-start', String(o + 1), '--playlist-end', String(total), `ytsearch${total}:${q}`]);
   let out = '', err = '';
   child.stdout.on('data', d => { out += d; });
