@@ -11,7 +11,17 @@
 }
 * { box-sizing: border-box; }
 body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; color: var(--text);
-  background: var(--bg); min-height: 100vh; overflow-x: hidden; animation: pagein .5s ease; }
+  background: var(--bg) url('bg.jpg') center top / cover no-repeat fixed;
+  min-height: 100vh; overflow-x: hidden; animation: pagein .5s ease; }
+.shade { position: fixed; inset: 0; z-index: -1;
+  background: linear-gradient(rgba(6,6,12,.66), rgba(6,6,12,.88)); }
+/* intro splash */
+#intro { position: fixed; inset: 0; z-index: 60; background: #000;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity .6s ease; }
+#intro.hide { opacity: 0; pointer-events: none; }
+#intro video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+#skip { position: absolute; right: 1.2rem; bottom: 1.2rem; opacity: .85; }
 @keyframes pagein { from { opacity: 0; } to { opacity: 1; } }
 .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
 .blob { position: absolute; width: 55vmax; height: 55vmax; border-radius: 50%; filter: blur(90px); opacity: .28; }
@@ -135,6 +145,8 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 </head>
 <body>
 <div class="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+<div class="shade"></div>
+<div id="intro"><video id="introv" src="Intro.mkv" muted playsinline autoplay preload="auto"></video><button id="skip">Skip ▸</button></div>
 <div class="layout">
 <aside id="sidebar">
 <div class="brand">
@@ -515,13 +527,29 @@ q.addEventListener('input', () => {
 q.onkeydown = e => { if (e.key === 'Enter') load(); };
 const pv = new URLSearchParams(location.search).get('v');
 const DEFAULT_VIDEO = 'liRlUQFbkiI';
-renderSaved();
-if (pv) { q.value = pv; load(); }
-else {
-  // featured autoplay: full-download then play
-  engine.value = 'full';
-  playId(DEFAULT_VIDEO, 'Featured');
+// app boots after the intro splash finishes
+let booted = false;
+function finishIntro() {
+  if (booted) return;
+  booted = true;
+  document.getElementById('intro').classList.add('hide');
+  setTimeout(() => document.getElementById('intro').remove(), 700);
+  boot();
 }
+function boot() {
+  renderSaved();
+  if (pv) { q.value = pv; load(); }
+  else {
+    engine.value = 'full';
+    playId(DEFAULT_VIDEO, 'Featured');
+  }
+}
+const introv = document.getElementById('introv');
+introv.addEventListener('ended', finishIntro);
+introv.addEventListener('error', finishIntro);
+document.getElementById('skip').onclick = finishIntro;
+introv.play().catch(finishIntro);
+setTimeout(finishIntro, 20000); // failsafe: never trap the user
 </script>
 </body>
 </html>
