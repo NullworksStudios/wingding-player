@@ -146,7 +146,7 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 <body>
 <div class="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
 <div class="shade"></div>
-<div id="intro"><video id="introv" src="Intro.mkv" muted playsinline autoplay preload="auto"></video><button id="skip">Skip ▸</button></div>
+<div id="intro"><video id="introv" src="Intro.mkv" playsinline autoplay preload="auto"></video><button id="sound" style="display:none;position:absolute;left:1.2rem;bottom:1.2rem;">🔊 Tap for sound</button><button id="skip">Skip ▸</button></div>
 <div class="layout">
 <aside id="sidebar">
 <div class="brand">
@@ -545,10 +545,22 @@ function boot() {
   }
 }
 const introv = document.getElementById('introv');
+const soundBtn = document.getElementById('sound');
 introv.addEventListener('ended', finishIntro);
 introv.addEventListener('error', finishIntro);
 document.getElementById('skip').onclick = finishIntro;
-introv.play().catch(finishIntro);
+// autoplay with sound is blocked before first interaction: try sound,
+// fall back to muted, and let one tap unmute
+introv.muted = false;
+introv.play().then(() => { soundBtn.style.display = 'none'; }).catch(() => {
+  introv.muted = true;
+  introv.play().then(() => { soundBtn.style.display = 'block'; }).catch(finishIntro);
+});
+soundBtn.onclick = () => {
+  introv.muted = false;
+  introv.play().catch(()=>{});
+  soundBtn.style.display = 'none';
+};
 setTimeout(finishIntro, 20000); // failsafe: never trap the user
 </script>
 </body>
