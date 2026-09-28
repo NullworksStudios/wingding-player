@@ -146,7 +146,7 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 <body>
 <div class="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
 <div class="shade"></div>
-<div id="intro"><video id="introv" src="Intro.mkv" playsinline autoplay preload="auto"></video><button id="sound" style="display:none;position:absolute;left:1.2rem;bottom:1.2rem;">🔊 Tap for sound</button><button id="skip">Skip ▸</button></div>
+<div id="intro"><video id="introv" src="Intro.mkv" muted playsinline autoplay preload="auto"></video></div>
 <div class="layout">
 <aside id="sidebar">
 <div class="brand">
@@ -545,22 +545,26 @@ function boot() {
   }
 }
 const introv = document.getElementById('introv');
-const soundBtn = document.getElementById('sound');
 introv.addEventListener('ended', finishIntro);
 introv.addEventListener('error', finishIntro);
-document.getElementById('skip').onclick = finishIntro;
-// autoplay with sound is blocked before first interaction: try sound,
-// fall back to muted, and let one tap unmute
-introv.muted = false;
-introv.play().then(() => { soundBtn.style.display = 'none'; }).catch(() => {
+// first ever play is muted (browser blocks unmuted autoplay cold);
+// once the user has interacted, later plays go with sound
+let sounded = false;
+try { sounded = localStorage.getItem('wd-interacted') === '1'; } catch {}
+function markInteracted() {
+  try { localStorage.setItem('wd-interacted', '1'); } catch {}
+  if (!booted && introv && !introv.ended) {
+    introv.muted = false;
+    introv.play().catch(()=>{});
+  }
+}
+addEventListener('pointerdown', markInteracted);
+addEventListener('keydown', markInteracted);
+introv.muted = !sounded;
+introv.play().catch(() => {
   introv.muted = true;
-  introv.play().then(() => { soundBtn.style.display = 'block'; }).catch(finishIntro);
+  introv.play().catch(finishIntro);
 });
-soundBtn.onclick = () => {
-  introv.muted = false;
-  introv.play().catch(()=>{});
-  soundBtn.style.display = 'none';
-};
 setTimeout(finishIntro, 20000); // failsafe: never trap the user
 </script>
 </body>
