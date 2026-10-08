@@ -281,7 +281,7 @@ try {
   }
 } catch {}
 // Prefetch the featured video on boot so first open plays fast.
-const DEFAULT_VIDEO = process.env.DEFAULT_VIDEO || 'liRlUQFbkiI';
+const DEFAULT_VIDEO = process.env.DEFAULT_VIDEO || 'LDJfSPDdBjI';
 const DEFAULT_H = parseInt(process.env.DEFAULT_H, 10) || 480;
 try {
   startDownload(DEFAULT_VIDEO, ALLOWED_H.includes(DEFAULT_H) ? DEFAULT_H : 480,

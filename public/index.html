@@ -146,7 +146,7 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 <body>
 <div class="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
 <div class="shade"></div>
-<div id="intro"><video id="introv" src="Intro.mkv" muted playsinline autoplay preload="auto"></video></div>
+<div id="intro"><video id="introv" muted playsinline autoplay preload="auto"></video></div>
 <div class="layout">
 <aside id="sidebar">
 <div class="brand">
@@ -526,7 +526,14 @@ q.addEventListener('input', () => {
 });
 q.onkeydown = e => { if (e.key === 'Enter') load(); };
 const pv = new URLSearchParams(location.search).get('v');
-const DEFAULT_VIDEO = 'liRlUQFbkiI';
+const DEFAULT_VIDEO = 'LDJfSPDdBjI';
+// random intro splash: 21stsec (75% from 21s, 25% full), 9secs (first 9s), old Intro.mkv (full)
+function pickIntro() {
+  const r = Math.floor(Math.random() * 3);
+  if (r === 0) return { src: '21stsec.webm', startAt: Math.random() < 0.25 ? 0 : 21, maxPlay: null };
+  if (r === 1) return { src: '9secs.mkv', startAt: 0, maxPlay: 9 };
+  return { src: 'Intro.mkv', startAt: 0, maxPlay: null };
+}
 // app boots after the intro splash finishes
 let booted = false;
 function finishIntro() {
@@ -545,6 +552,20 @@ function boot() {
   }
 }
 const introv = document.getElementById('introv');
+const picked = pickIntro();
+let introTimer = null;
+introv.addEventListener('loadedmetadata', () => {
+  try {
+    if (picked.startAt > 0 && isFinite(introv.duration) && introv.duration > picked.startAt + 1) {
+      introv.currentTime = picked.startAt;
+    }
+  } catch {}
+});
+introv.addEventListener('playing', () => {
+  if (picked.maxPlay && !introTimer) {
+    introTimer = setTimeout(finishIntro, picked.maxPlay * 1000);
+  }
+});
 introv.addEventListener('ended', finishIntro);
 introv.addEventListener('error', finishIntro);
 // first ever play is muted (browser blocks unmuted autoplay cold);
@@ -561,11 +582,13 @@ function markInteracted() {
 addEventListener('pointerdown', markInteracted);
 addEventListener('keydown', markInteracted);
 introv.muted = !sounded;
+introv.src = picked.src;
+introv.load();
 introv.play().catch(() => {
   introv.muted = true;
   introv.play().catch(finishIntro);
 });
-setTimeout(finishIntro, 20000); // failsafe: never trap the user
+setTimeout(finishIntro, 40000); // failsafe: never trap the user (longest intro is ~30s)
 </script>
 </body>
 </html>
