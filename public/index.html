@@ -11,7 +11,7 @@
 }
 * { box-sizing: border-box; }
 body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; color: var(--text);
-  background: var(--bg) url('bg.jpg') center top / cover no-repeat fixed;
+  background: var(--bg) url('bg.webp') center top / cover no-repeat fixed;
   min-height: 100vh; overflow-x: hidden; animation: pagein .5s ease; }
 .shade { position: fixed; inset: 0; z-index: -1;
   background: linear-gradient(rgba(6,6,12,.66), rgba(6,6,12,.88)); }
@@ -20,7 +20,7 @@ body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0;
   display: flex; align-items: center; justify-content: center;
   transition: opacity .6s ease; }
 #intro.hide { opacity: 0; pointer-events: none; }
-#intro video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+#intro video { width: 100%; height: 100%; object-fit: cover; background: #000; }
 #skip { position: absolute; right: 1.2rem; bottom: 1.2rem; opacity: .85; }
 @keyframes pagein { from { opacity: 0; } to { opacity: 1; } }
 .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
@@ -320,9 +320,13 @@ function setSaved(list) {
 }
 async function safeVideo() {
   if (!currentId) { err.textContent = 'Play or pick a video first.'; return; }
+  if (safeBtn.dataset.busy === '1') return;
   const id = currentId, h = quality.value;
+  const baseLabel = 'Safe';
+  const setSafe = t => { safeBtn.textContent = t; };
   err.textContent = '';
-  showSpin('Preparing save…');
+  safeBtn.dataset.busy = '1';
+  setSafe('Starting…');
   try {
     const d = await (await fetch('/download?v=' + encodeURIComponent(id) + '&h=' + encodeURIComponent(h))).json();
     if (d.error || !d.key) throw new Error(d.error || 'download failed to start');
@@ -331,10 +335,10 @@ async function safeVideo() {
       if (s.state === 'ready') break;
       if (s.state === 'error') throw new Error(s.error || 'server download failed');
       const waiting = !s.totalMb || s.totalMb === '?';
-      const label = waiting ? 'Contacting YouTube…' :
-        `Preparing… ${s.percent}% (${s.downloadedMb} of ${s.totalMb} at ${s.speed})`;
-      spintext.textContent = label;
-      title.textContent = label;
+      const pct = s.state === 'merging' ? 99 : Math.max(0, s.percent || 0);
+      setSafe('Safe ' + pct + '%');
+      barfill.style.width = pct + '%';
+      title.textContent = waiting ? 'Contacting YouTube…' : `Preparing ${pct}%`;
       await new Promise(r => setTimeout(r, 1500));
     }
     const url = '/file?key=' + d.key;
@@ -350,10 +354,9 @@ async function safeVideo() {
       chunks.push(value);
       got += value.length;
       const pct = total ? Math.floor(got / total * 100) : 0;
-      const label = `Saving… ${total ? pct + '% (' + (got / 1048576).toFixed(1) + ' / ' + (total / 1048576).toFixed(1) + ' MB)' : (got / 1048576).toFixed(1) + ' MB'}`;
-      spintext.textContent = label;
-      title.textContent = label;
+      setSafe('Safe ' + pct + '%');
       barfill.style.width = pct + '%';
+      title.textContent = total ? `Saving… ${pct}% (${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB)` : `Saving… ${(got / 1048576).toFixed(1)} MB`;
     }
     const cache = await caches.open('wingding-v1');
     await cache.put(url, new Response(new Blob(chunks, { type: 'video/mp4' }),
@@ -362,13 +365,15 @@ async function safeVideo() {
     list.unshift({ key: d.key, id, h, title: nowtitle.textContent || id, size: got, savedAt: Date.now() });
     setSaved(list);
     renderSaved();
-    hideSpin();
-    barfill.style.width = '100%';
+    setSafe('Saved ✓');
+    setTimeout(() => { safeBtn.textContent = baseLabel; }, 4000);
     title.textContent = 'Saved ✓ ' + (nowtitle.textContent || id) + ' (' + (got / 1048576).toFixed(1) + ' MB)';
   } catch (e) {
-    hideSpin();
+    setSafe(baseLabel);
     err.textContent = 'Save failed: ' + (e.message || e) +
       (String(e.message || '').includes('QuotaExceeded') ? ' — browser storage is full.' : '');
+  } finally {
+    delete safeBtn.dataset.busy;
   }
 }
 function renderSaved() {
