@@ -20,7 +20,7 @@ body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0;
   display: flex; align-items: center; justify-content: center;
   transition: opacity .6s ease; }
 #intro.hide { opacity: 0; pointer-events: none; }
-#intro video { width: 100%; height: 100%; object-fit: cover; background: #000; }
+#intro video { position: absolute; left: 50%; top: 50%; background: #000; transform-origin: center center; will-change: transform; }
 #skip { position: absolute; right: 1.2rem; bottom: 1.2rem; opacity: .85; }
 @keyframes pagein { from { opacity: 0; } to { opacity: 1; } }
 .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
@@ -574,6 +574,25 @@ introv.addEventListener('playing', () => {
   if (picked.maxPlay && !introTimer) {
     introTimer = setTimeout(finishIntro, picked.maxPlay * 1000);
   }
+  // fill the viewport at the video's own aspect ratio (no CSS zoom warping,
+  // just cover-crop math) — works no matter what SAR/DAR the source declares
+  try {
+    const vw = introv.videoWidth, vh = introv.videoHeight;
+    if (!vw || !vh) return;
+    const sw = innerWidth / vw, sh = innerHeight / vh;
+    const s = Math.max(sw, sh);              // cover
+    introv.style.transform = `translate(-50%,-50%) scale(${s})`;
+    introv.style.width = vw + 'px';
+    introv.style.height = vh + 'px';
+  } catch {}
+});
+// re-fit when the screen rotates / resizes
+addEventListener('resize', () => {
+  try {
+    const vw = introv.videoWidth, vh = introv.videoHeight;
+    if (vw && vh) introv.style.transform =
+      `translate(-50%,-50%) scale(${Math.max(innerWidth / vw, innerHeight / vh)})`;
+  } catch {}
 });
 introv.addEventListener('ended', finishIntro);
 introv.addEventListener('error', finishIntro);
