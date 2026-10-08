@@ -565,6 +565,10 @@ introv.addEventListener('loadedmetadata', () => {
       introv.currentTime = picked.startAt;
     }
   } catch {}
+  // source has a non-square pixel SAR (833:540) that browsers respect, leaving
+  // side bars; stretching the element to the viewport makes cover() crop it away
+  introv.style.width = '100%';
+  introv.style.height = '100%';
 });
 introv.addEventListener('playing', () => {
   if (picked.maxPlay && !introTimer) {
