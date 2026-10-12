@@ -18,7 +18,8 @@ node server.js
 4. Open the Railway-provided `https://xxx.up.railway.app` URL on the restricted WiFi.
 
 ## Notes / limits
-- Bandwidth: video is proxied through Railway. Default 360p; pick 144p–1080p in the sidebar (higher = more egress).
+- Bandwidth: video is proxied through Railway. Default 480p; pick 144p–1080p in the control bar (higher = more egress). Full-download mode always grabs best quality.
+- Tabs: Watch (player + search), Shorts (vertical auto-playing feed from channel shorts tabs, auto-recommends from your searches), Feed (mix built from your recent searches, stored only in your browser).
 - Railway bot-check: YouTube shows "Sign in to confirm you're not a bot" to datacenter IPs.
   Fix: export `youtube.com` cookies ("Get cookies.txt LOCALLY" with a throwaway account)
   into a `YT_COOKIES` Railway variable and redeploy. Never commit the file — it is

@@ -113,11 +113,18 @@ async function getDirectUrls(url, format, attempts = 3) {
 }
 const ALLOWED_H = [144, 240, 360, 480, 720, 1080];
 function parseH(req) {
+  if (req.query.h === 'best') return 'best';
   let h = parseInt(req.query.h, 10);
   if (!ALLOWED_H.includes(h)) h = 480;
   return h;
 }
 function formatFor(h) {
+  // Full mode: uncapped best H264+AAC (CPU/bandwidth are free, quality first).
+  if (h === 'best') {
+    const V = `bv*[vcodec^=avc][protocol=https]`;
+    const A = `ba[acodec^=mp4a][protocol=https]`;
+    return `${V}+${A}/bv*[vcodec^=avc]+ba[acodec^=mp4a]/b[vcodec^=avc]/b`;
+  }
   const V = `bv*[height<=${h}][vcodec^=avc][protocol=https]`;
   const A = `ba[acodec^=mp4a][protocol=https]`;
   return `${V}+${A}/bv*[vcodec^=avc][protocol=https]+${A}/b[vcodec^=avc]/b`;
@@ -235,7 +242,7 @@ app.get('/download', (req, res) => {
   res.json({ key: startDownload(m[1], parseH(req), url) });
 });
 app.get('/api/progress', (req, res) => {
-  const m = String(req.query.key || '').match(/^([a-zA-Z0-9_-]{11})-(144|240|360|480|720|1080)$/);
+  const m = String(req.query.key || '').match(/^([a-zA-Z0-9_-]{11})-(144|240|360|480|720|1080|best)$/);
   if (!m) return res.status(400).json({ error: 'Bad key' });
   const st = jobs.get(`${m[1]}-${m[2]}`) || { state: 'unknown', percent: 0, downBytes: null, totalBytes: null, speed: '', error: '' };
   res.json({
@@ -248,7 +255,7 @@ app.get('/api/progress', (req, res) => {
   });
 });
 app.get('/file', (req, res) => {
-  const m = String(req.query.key || '').match(/^([a-zA-Z0-9_-]{11})-(144|240|360|480|720|1080)$/);
+  const m = String(req.query.key || '').match(/^([a-zA-Z0-9_-]{11})-(144|240|360|480|720|1080|best)$/);
   if (!m) return res.status(400).send('Bad key');
   const file = dlFile(`${m[1]}-${m[2]}`);
   if (!fs.existsSync(file)) return res.status(404).send('Not ready');
@@ -280,15 +287,73 @@ try {
     if (fs.statSync(p).mtimeMs < day) { try { fs.unlinkSync(p); } catch {} }
   }
 } catch {}
-// Prefetch the featured video on boot so first open plays fast.
-const DEFAULT_VIDEO = process.env.DEFAULT_VIDEO || 'LDJfSPDdBjI';
-const DEFAULT_H = parseInt(process.env.DEFAULT_H, 10) || 480;
+// Prefetch the featured video on boot so first open plays fast (best quality).
+const DEFAULT_VIDEO = process.env.DEFAULT_VIDEO || 'tyGyS2_hz_w';
 try {
-  startDownload(DEFAULT_VIDEO, ALLOWED_H.includes(DEFAULT_H) ? DEFAULT_H : 480,
+  startDownload(DEFAULT_VIDEO, 'best',
     `https://www.youtube.com/watch?v=${DEFAULT_VIDEO}`);
 } catch (e) { console.error('prefetch failed', e); }
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+
+// Server-side Shorts lookup: search to find channels, then pull their /shorts
+// tabs (everything there is a short by definition — flat data has no durations).
+// Client never touches youtube.com.
+function ytJson(args) {
+  return new Promise((resolve, reject) => {
+    const child = runYtDlp(args);
+    let out = '', err = '';
+    child.stdout.on('data', d => { out += d; });
+    child.stderr.on('data', d => { err += d; });
+    child.on('close', code => {
+      if (code !== 0) return reject(new Error(err.slice(0, 300)));
+      try { resolve(JSON.parse(out)); }
+      catch { reject(new Error('parse')); }
+    });
+    child.on('error', reject);
+  });
+}
+app.get('/api/shorts', async (req, res) => {
+  const q = (req.query.q || '').trim().slice(0, 100);
+  if (!q) return res.status(400).json({ error: 'Provide ?q=QUERY' });
+  let n = parseInt(req.query.n, 10);
+  if (!Number.isFinite(n)) n = 10;
+  n = Math.min(15, Math.max(5, n));
+  let o = parseInt(req.query.o, 10);
+  if (!Number.isFinite(o)) o = 0;
+  o = Math.min(60, Math.max(0, o));
+  try {
+    const s = await ytJson(['--dump-single-json', '--flat-playlist', ...baseArgs(false),
+      '--playlist-end', '8', `ytsearch8:${q}`]);
+    const chans = [];
+    for (const e of (s.entries || [])) {
+      const cu = e && (e.channel_url || e.uploader_url);
+      if (cu && !chans.includes(cu) && chans.length < 3) chans.push(cu);
+    }
+    const tabs = await Promise.all(chans.map(cu =>
+      ytJson(['--dump-single-json', '--flat-playlist', ...baseArgs(false),
+        '--playlist-end', '12', cu.replace(/\/?$/, '') + '/shorts']).catch(() => null)));
+    const seen = new Set();
+    const pool = [];
+    for (const t of tabs) {
+      if (!t) continue;
+      for (const e of (t.entries || [])) {
+        if (!e || !e.id || seen.has(e.id)) continue;
+        seen.add(e.id);
+        pool.push({
+          id: e.id,
+          title: e.title || e.id,
+          author: e.uploader || e.channel || '',
+          duration: e.duration || null
+        });
+      }
+    }
+    res.json({ results: pool.slice(o, o + n) });
+  } catch (e) {
+    console.error(e);
+    res.status(502).json({ error: 'Shorts lookup failed. Try again.' });
+  }
+});
 
 // Server-side YouTube search. Client never touches youtube.com.
 app.get('/api/search', (req, res) => {

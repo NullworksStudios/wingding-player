@@ -43,7 +43,7 @@ main { order: 1; flex: 1; padding: 1.6rem 1.4rem 2rem; max-width: 900px; width: 
   animation: slideup .45s cubic-bezier(.2,.9,.3,1.1); }
 @keyframes slideup { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 .brand { display: flex; align-items: center; gap: .6rem; flex: 0 0 auto; }
-.brand h1 { margin: 0; font-size: 1.05rem; white-space: nowrap; } letter-spacing: -.02em;
+.brand h1 { margin: 0; font-size: 1.05rem; white-space: nowrap; letter-spacing: -.02em;
   background: linear-gradient(92deg, #fff 20%, var(--accent2) 55%, var(--accent) 80%);
   background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: shine 6s linear infinite; }
@@ -102,7 +102,7 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 #barfill { position: absolute; inset: 0 auto 0 0; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2));
   transition: width .2s; box-shadow: 0 0 10px rgba(255,59,47,.8); }
 #err { color: #ff7070; min-height: 1.4em; }
-#results, #saved { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: .6rem; }
+#results, #saved, #feedres { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: .6rem; }
 .card { cursor: pointer; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--card);
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s; animation: rise .45s cubic-bezier(.2,.9,.3,1.2) backwards; }
 .card:nth-child(2) { animation-delay: .05s; } .card:nth-child(3) { animation-delay: .1s; }
@@ -133,6 +133,30 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 .skel .ln { height: 12px; margin: 10px; border-radius: 6px; background: linear-gradient(100deg, #1e1e26 40%, #2d2d39 50%, #1e1e26 60%);
   background-size: 200% 100%; animation: shimmer 1.2s infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
+/* tabs */
+#tabs { display: flex; gap: .5rem; margin: 0 0 1rem; }
+#tabs button { flex: 1; background: #17171c; border: 1px solid var(--line); font-size: .95rem; padding: .6rem .5rem; }
+#tabs button.on { background: linear-gradient(135deg, var(--accent), #c40f02); border-color: transparent; box-shadow: 0 4px 18px rgba(255,59,47,.35); }
+/* shorts vertical feed */
+#shortsfeed { height: 72vh; overflow-y: auto; scroll-snap-type: y mandatory; border-radius: 16px;
+  background: #000; border: 1px solid var(--line); scrollbar-width: thin; }
+.short { position: relative; height: 72vh; scroll-snap-align: start; scroll-snap-stop: always;
+  background: #000; overflow: hidden; border-bottom: 1px solid var(--line); }
+.short video { width: 100%; height: 100%; max-height: none; object-fit: contain; background: #000; }
+.shortmeta { position: absolute; left: 0; right: 0; bottom: 0; padding: 2.2rem .9rem .9rem;
+  background: linear-gradient(transparent, rgba(0,0,0,.82)); font-size: .9rem; pointer-events: none; }
+.shortmeta small { color: #cfcfd8; }
+.shortcount { position: absolute; top: .7rem; right: .8rem; font-size: .75rem; color: #fff;
+  background: rgba(0,0,0,.6); padding: 2px 8px; border-radius: 8px; }
+.shortsound { position: absolute; top: .7rem; left: .8rem; font-size: .75rem; color: #fff;
+  background: rgba(0,0,0,.6); border: none; border-radius: 8px; padding: 3px 9px; cursor: pointer; }
+#shortsseed { display: flex; gap: .5rem; margin: 0 0 .7rem; }
+#shortsseed input { flex: 1; min-width: 0; }
+/* feed */
+.chiprow { display: flex; flex-wrap: wrap; gap: .45rem; margin: 0 0 .8rem; }
+.chiprow button { background: #17171c; border: 1px solid var(--line); font-size: .82rem;
+  padding: .4rem .8rem; font-weight: 600; }
+.chiprow button:hover { border-color: var(--accent); }
 #menuBtn { display: none; }
 /* reactive: bar wraps neatly on narrow screens */
 @media (max-width: 700px) {
@@ -176,6 +200,12 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 <div id="hint">Live search starts as you type (3+ chars). Quality switches reload the video instantly. No youtube.com / googlevideo.com / i.ytimg.com requests from your browser.</div>
 </aside>
 <main>
+<div id="tabs">
+<button id="tab-watch" class="on">Watch</button>
+<button id="tab-shorts">Shorts</button>
+<button id="tab-feed">Feed</button>
+</div>
+<div id="view-watch">
 <h2 id="title"></h2>
 <div id="stage">
 <video id="v" controls playsinline preload="auto"></video>
@@ -187,6 +217,16 @@ video { width: 100%; max-height: 56vh; display: block; background: #000; }
 <button id="more" style="display:none;width:100%;margin-top:1rem;">Show more videos</button>
 <h3 id="savedh" style="display:none;margin:1.4rem 0 .2rem;">Saved on this device</h3>
 <div id="saved"></div>
+</div>
+<div id="view-shorts" style="display:none">
+<div id="shortsseed"><input id="seedq" placeholder="Shorts about…" autocomplete="off"><button id="seedgo">Find</button></div>
+<div id="shortsstatus" style="color:var(--muted);font-size:.85rem;min-height:1.4em;"></div>
+<div id="shortsfeed"></div>
+</div>
+<div id="view-feed" style="display:none">
+<div class="chiprow" id="feedchips"></div>
+<div id="feedres"></div>
+</div>
 </main>
 </div>
 <script>
@@ -273,7 +313,7 @@ async function playFull(id, name) {
   showSpin('Starting download…');
   let key;
   try {
-    const d = await (await fetch('/download?v=' + encodeURIComponent(id) + '&h=' + encodeURIComponent(quality.value))).json();
+    const d = await (await fetch('/download?v=' + encodeURIComponent(id) + '&h=best')).json();
     if (d.error) { hideSpin(); err.textContent = d.error; return; }
     key = d.key;
   } catch { hideSpin(); err.textContent = 'Download failed to start.'; return; }
@@ -328,7 +368,7 @@ async function safeVideo() {
   safeBtn.dataset.busy = '1';
   setSafe('Starting…');
   try {
-    const d = await (await fetch('/download?v=' + encodeURIComponent(id) + '&h=' + encodeURIComponent(h))).json();
+    const d = await (await fetch('/download?v=' + encodeURIComponent(id) + '&h=best')).json();
     if (d.error || !d.key) throw new Error(d.error || 'download failed to start');
     for (;;) {
       const s = await (await fetch('/api/progress?key=' + encodeURIComponent(d.key))).json();
@@ -470,7 +510,7 @@ function cardFor(it) {
   meta.querySelector('small').textContent = it.author || '';
   card.appendChild(tw);
   card.appendChild(meta);
-  card.onclick = () => { playId(it.id, it.title); markPlaying(it.id); };
+  card.onclick = () => { switchTab('watch'); playId(it.id, it.title); markPlaying(it.id); };
   return card;
 }
 async function search(query, seq) {
@@ -478,6 +518,7 @@ async function search(query, seq) {
   title.textContent = 'Searching…';
   moreBtn.style.display = 'none';
   lastQuery = query; shownCount = 0; shownIds = new Set();
+  pushHist(query);
   skeletons(6);
   try {
     const r = await (await fetch('/api/search?q=' + encodeURIComponent(query) + '&n=' + PAGE + '&o=0')).json();
@@ -508,6 +549,179 @@ async function moreVideos() {
     else moreBtn.textContent = 'Show more videos';
   } catch { moreBtn.textContent = 'Failed — retry'; }
 }
+// ---- tabs ----
+function switchTab(name) {
+  for (const t of ['watch', 'shorts', 'feed']) {
+    document.getElementById('view-' + t).style.display = t === name ? 'block' : 'none';
+    document.getElementById('tab-' + t).classList.toggle('on', t === name);
+  }
+  if (name === 'shorts') initShorts();
+  if (name === 'feed') renderFeed();
+  if (name === 'watch') pauseShorts();
+}
+document.getElementById('tab-watch').onclick = () => switchTab('watch');
+document.getElementById('tab-shorts').onclick = () => switchTab('shorts');
+document.getElementById('tab-feed').onclick = () => switchTab('feed');
+
+// ---- search history (powers the feed tab) ----
+function getHist() {
+  try { return JSON.parse(localStorage.getItem('wingding-hist') || '[]'); }
+  catch { return []; }
+}
+function pushHist(query) {
+  try {
+    const h = [query, ...getHist().filter(x => x !== query)].slice(0, 20);
+    localStorage.setItem('wingding-hist', JSON.stringify(h));
+  } catch {}
+}
+
+// ---- shorts vertical feed ----
+let shortsIds = new Set(), shortsLoading = false, shortsSeed = '', shortsOffset = 0,
+    shortsPage = 0, shortsObs = null, shortsMuted = true, shortsDone = false;
+function shortsWords(title) {
+  return String(title || '').replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean).slice(0, 5).join(' ') || shortsSeed;
+}
+function shortsCard(it, idx) {
+  const d = document.createElement('div');
+  d.className = 'short';
+  const vb = document.createElement('video');
+  vb.src = '/stream?v=' + encodeURIComponent(it.id) + '&h=480';
+  vb.muted = true;
+  vb.loop = true;
+  vb.playsInline = true;
+  vb.preload = 'metadata';
+  vb.onclick = () => {
+    if (vb.paused) { shortsMuted = false; vb.muted = false; vb.play().catch(()=>{}); }
+    else vb.pause();
+  };
+  vb.onerror = () => {
+    const nxt = d.nextElementSibling;
+    d.remove();
+    if (nxt && nxt.scrollIntoView) nxt.scrollIntoView({ behavior: 'smooth' });
+  };
+  const meta = document.createElement('div');
+  meta.className = 'shortmeta';
+  meta.innerHTML = '<b></b> <span class="shortcount"></span><br><small></small>';
+  meta.querySelector('b').textContent = '#' + (idx + 1) + ' ' + (it.title || it.id);
+  meta.querySelector('small').textContent = it.author || '';
+  meta.querySelector('.shortcount').textContent = fmtDur(it.duration);
+  const snd = document.createElement('button');
+  snd.className = 'shortsound';
+  snd.textContent = 'tap for sound';
+  snd.onclick = ev => {
+    ev.stopPropagation();
+    shortsMuted = false;
+    document.querySelectorAll('#shortsfeed video').forEach(o => { o.muted = false; });
+    vb.play().catch(()=>{});
+  };
+  d.appendChild(vb);
+  d.appendChild(meta);
+  d.appendChild(snd);
+  return d;
+}
+function shortsObserve() {
+  const feed = document.getElementById('shortsfeed');
+  if (shortsObs) shortsObs.disconnect();
+  shortsObs = new IntersectionObserver(entries => {
+    const cards = [...feed.querySelectorAll('.short')];
+    for (const en of entries) {
+      const vid = en.target.querySelector('video');
+      if (!vid) continue;
+      if (en.intersectionRatio >= 0.6) {
+        feed.querySelectorAll('video').forEach(o => { if (o !== vid) o.pause(); });
+        vid.muted = shortsMuted;
+        vid.play().catch(()=>{});
+        if (cards.indexOf(en.target) >= cards.length - 3) loadShorts(true);
+      } else vid.pause();
+    }
+  }, { root: feed, threshold: [0.6] });
+  feed.querySelectorAll('.short').forEach(c => shortsObs.observe(c));
+}
+async function loadShorts(append) {
+  if (shortsLoading || shortsDone) return;
+  shortsLoading = true;
+  const feed = document.getElementById('shortsfeed');
+  const status = document.getElementById('shortsstatus');
+  if (!append) status.textContent = 'Finding shorts…';
+  try {
+    const r = await (await fetch('/api/shorts?q=' + encodeURIComponent(shortsSeed) + '&n=8&o=' + shortsOffset)).json();
+    if (!r.error && r.results) {
+      shortsOffset += 8;
+      shortsPage++;
+      if (!r.results.length) {
+        shortsDone = true;
+        status.textContent = feed.querySelector('.short') ? '' : 'No shorts found — try another topic.';
+        return;
+      }
+      status.textContent = '';
+      // every 3rd page, auto-recommend from something you searched before
+      if (append && shortsPage % 3 === 0) {
+        const hist = getHist();
+        if (hist.length) {
+          shortsSeed = hist[Math.floor(Math.random() * Math.min(5, hist.length))];
+          shortsOffset = 0; // new pool, start over (dedupe keeps it fresh)
+        }
+      }
+      const base = feed.querySelectorAll('.short').length;
+      for (const it of r.results) {
+        if (shortsIds.has(it.id)) continue;
+        shortsIds.add(it.id);
+        feed.appendChild(shortsCard(it, base + feed.querySelectorAll('.short').length - base));
+      }
+      shortsObserve();
+    }
+  } catch { status.textContent = 'Lookup failed — scroll to retry.'; }
+  shortsLoading = false;
+}
+function initShorts() {
+  pauseShorts();
+  if (document.getElementById('shortsfeed').querySelector('.short')) return;
+  shortsSeed = (document.getElementById('seedq').value || '').trim() || lastQuery || 'funny shorts';
+  document.getElementById('seedq').value = shortsSeed;
+  shortsIds = new Set();
+  shortsOffset = 0;
+  shortsPage = 0;
+  shortsDone = false;
+  loadShorts(false);
+}
+function pauseShorts() {
+  document.querySelectorAll('#shortsfeed video').forEach(o => { try { o.pause(); } catch {} });
+}
+
+// ---- feed tab: recommendations from your searches ----
+async function renderFeed() {
+  const box = document.getElementById('feedres');
+  const chips = document.getElementById('feedchips');
+  const hist = getHist();
+  chips.innerHTML = '';
+  box.innerHTML = '';
+  if (!hist.length) {
+    box.innerHTML = '<p style="color:var(--muted)">Search for something first — your recent searches power this feed.</p>';
+    return;
+  }
+  for (const hq of hist.slice(0, 5)) {
+    const b = document.createElement('button');
+    b.textContent = hq;
+    b.onclick = () => { switchTab('watch'); q.value = hq; load(); };
+    chips.appendChild(b);
+  }
+  box.innerHTML = '<p style="color:var(--muted)">Mixing your feed…</p>';
+  const qs = hist.slice(0, 3);
+  const pages = await Promise.all(qs.map(x =>
+    fetch('/api/search?q=' + encodeURIComponent(x) + '&n=6&o=0')
+      .then(r => r.json()).catch(() => ({ results: [] }))));
+  const seen = new Set();
+  const mixed = [];
+  for (let i = 0; i < 6; i++)
+    for (const p of pages)
+      if (p.results && p.results[i] && !seen.has(p.results[i].id)) {
+        seen.add(p.results[i].id);
+        mixed.push(p.results[i]);
+      }
+  box.innerHTML = '';
+  if (!mixed.length) box.innerHTML = '<p style="color:var(--muted)">Nothing yet — try again.</p>';
+  for (const it of mixed) box.appendChild(cardFor(it));
+}
 async function load() {
   const raw = q.value.trim();
   if (!raw) return;
@@ -522,6 +736,17 @@ async function load() {
   }
 }
 go.onclick = load;
+document.getElementById('seedgo').onclick = () => {
+  const s = document.getElementById('seedq').value.trim();
+  if (!s) return;
+  shortsSeed = s;
+  shortsIds = new Set();
+  shortsOffset = 0;
+  shortsPage = 0;
+  shortsDone = false;
+  document.getElementById('shortsfeed').innerHTML = '';
+  loadShorts(false);
+};
 // reactive: live search as you type (debounced)
 q.addEventListener('input', () => {
   clearTimeout(typeTimer);
@@ -531,13 +756,22 @@ q.addEventListener('input', () => {
 });
 q.onkeydown = e => { if (e.key === 'Enter') load(); };
 const pv = new URLSearchParams(location.search).get('v');
-const DEFAULT_VIDEO = 'LDJfSPDdBjI';
-// random intro splash: 21stsec (75% from 21s, 25% full), 9secs (first 9s), old Intro.mkv (full)
+const DEFAULT_VIDEO = 'tyGyS2_hz_w';
+// random intro splash across all 7 clips: 21stsec (75% from 21s, 25% full),
+// 9secs (first 9s), everything else plays full
 function pickIntro() {
-  const r = Math.floor(Math.random() * 3);
-  if (r === 0) return { src: '21stsec.webm', startAt: Math.random() < 0.25 ? 0 : 21, maxPlay: null };
-  if (r === 1) return { src: '9secs.mkv', startAt: 0, maxPlay: 9 };
-  return { src: 'Intro.mkv', startAt: 0, maxPlay: null };
+  const pool = [
+    { src: '21stsec.webm', startAt: -21 },
+    { src: '9secs.mkv', startAt: 0, maxPlay: 9 },
+    { src: 'Intro.mkv', startAt: 0, maxPlay: null },
+    { src: 'intro-mojang.webm', startAt: 0, maxPlay: null },
+    { src: 'intro-tenna.webm', startAt: 0, maxPlay: null },
+    { src: 'intro-valorant.mkv', startAt: 0, maxPlay: null },
+    { src: 'intro-valve.mkv', startAt: 0, maxPlay: null }
+  ];
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  if (pick.startAt === -21) pick.startAt = Math.random() < 0.25 ? 0 : 21;
+  return pick;
 }
 // app boots after the intro splash finishes
 let booted = false;
@@ -616,7 +850,7 @@ introv.play().catch(() => {
   introv.muted = true;
   introv.play().catch(finishIntro);
 });
-setTimeout(finishIntro, 40000); // failsafe: never trap the user (longest intro is ~30s)
+setTimeout(finishIntro, 50000); // failsafe: never trap the user (longest intro is ~41s)
 </script>
 </body>
 </html>
